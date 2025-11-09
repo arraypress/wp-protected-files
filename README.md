@@ -1,6 +1,15 @@
 # WordPress Protected Folders
 
-Simple folder protection for WordPress with automatic upload organization and .htaccess management. Protects upload directories with .htaccess rules, index files, and verifies protection is working.
+Complete folder protection and file delivery system for WordPress. Protects upload directories with .htaccess rules, verifies protection is working, and provides secure file streaming with range support and server optimizations.
+
+## Features
+
+- 🔒 **Folder Protection** - Automatic .htaccess and index file creation
+- 🚀 **Smart File Delivery** - Streaming with X-Sendfile, range requests, and chunked transfer
+- 📁 **Upload Organization** - Auto-organize uploads by post type or custom logic
+- ✅ **Protection Testing** - Actually verifies files are protected, not just file presence
+- 🎯 **Intelligent Defaults** - PDFs display inline, ZIPs download, videos stream
+- ⚡ **Server Optimized** - Supports Apache, Nginx, LiteSpeed with X-Sendfile/X-Accel-Redirect
 
 ## Install
 
@@ -8,87 +17,34 @@ Simple folder protection for WordPress with automatic upload organization and .h
 composer require arraypress/wp-protected-folders
 ```
 
-## Basic Usage
+## Requirements
+
+- PHP 7.4 or later
+- WordPress 5.0 or later
+- [arraypress/wp-file-utils](https://github.com/arraypress/wp-file-utils) (auto-installed)
+
+## Quick Start
 
 ```php
 // Register a protected folder
-register_protected_folder( 'my-downloads', [
-	'allowed_types'      => [ 'jpg', 'png', 'mp3' ],  // Files accessible publicly
-	'dated_folders'      => true,                   // Organize by year/month
-	'auto_protect'       => true,                    // Auto-protect on admin_init
-	'upload_filter'      => 'download',             // Auto-organize uploads for post type
-	'admin_notice_pages' => [ 'my-settings' ]    // Show notices on these pages
-] );
-
-// Get paths and URLs
-$path = get_protected_folder_path( 'my-downloads' );
-$url  = get_protected_folder_url( 'my-downloads' );
-
-// Check protection
-if ( is_folder_protected( 'my-downloads' ) ) {
-	echo "Folder is protected!";
-}
-
-// Advanced operations
-$protector = get_protected_folder( 'my-downloads' );
-if ( $protector ) {
-	$protector->protect( true );           // Force protection
-	$result = $protector->test_protection();
-	$info   = $protector->get_debug_info();
-}
-```
-
-## Configuration Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `allowed_types` | array | `['jpg', 'jpeg', 'png', 'gif', 'webp']` | File extensions allowed for public access |
-| `dated_folders` | bool | `true` | Organize uploads by year/month |
-| `auto_protect` | bool | `false` | Automatically protect on admin_init |
-| `upload_filter` | mixed | `null` | Post types, admin pages, or callback for upload filtering |
-| `admin_notice_pages` | array | `[]` | Admin page slugs to show protection notices |
-
-## Upload Filtering
-
-The `upload_filter` option is extremely flexible:
-
-```php
-// Single post type
 register_protected_folder( 'downloads', [
-	'upload_filter' => 'download'
+    'allowed_types' => ['jpg', 'png'],  // Allow preview images
+    'dated_folders' => true,            // Organize by year/month
+    'auto_protect'  => true,            // Auto-protect on admin_init
+    'upload_filter' => 'download'       // Auto-organize download post type uploads
 ] );
 
-// Multiple post types
-register_protected_folder( 'media', [
-	'upload_filter' => [ 'product', 'download' ]
-] );
-
-// Admin page
-register_protected_folder( 'settings-uploads', [
-	'upload_filter' => 'admin:my-settings-page'
-] );
-
-// Custom logic
-register_protected_folder( 'conditional', [
-	'upload_filter' => function () {
-		return isset( $_GET['special_upload'] );
-	}
-] );
-
-// Mix everything
-register_protected_folder( 'complex', [
-	'upload_filter' => [
-		'product',
-		'download',
-		'admin:product-settings',
-		function () {
-			return current_user_can( 'manage_downloads' );
-		}
-	]
-] );
+// Serve a protected file (automatically handles everything!)
+deliver_protected_file( '/path/to/protected/file.pdf' );
+// - PDFs display inline
+// - ZIPs force download  
+// - Videos stream with range support
+// - Uses X-Sendfile when available
 ```
 
 ## Core Functions
+
+### Folder Protection
 
 ```php
 // Register a protected folder
@@ -107,188 +63,300 @@ is_folder_protected( string $id, bool $force = false ): bool
 get_protected_folder( string $id ): ?Protector
 ```
 
-## Advanced Operations
-
-For operations beyond the basic helper functions, retrieve the Protector instance:
+### File Delivery
 
 ```php
-$protector = get_protected_folder( 'downloads' );
+// Deliver a protected file with automatic optimization
+deliver_protected_file( string $file_path, array $options = [] ): void
 
-if ( $protector ) {
-	// Force protection
-	$protector->protect( true );
+// Create a reusable delivery instance
+create_file_delivery( array $options = [] ): Delivery
+```
 
-	// Test protection
-	$result = $protector->test_protection();
-	echo $result['message'];
+## Configuration Options
 
-	// Get debug info
-	$info = $protector->get_debug_info();
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `allowed_types` | array | `['jpg', 'jpeg', 'png', 'gif', 'webp']` | File extensions allowed for public access |
+| `dated_folders` | bool | `true` | Organize uploads by year/month |
+| `auto_protect` | bool | `false` | Automatically protect on admin_init |
+| `upload_filter` | mixed | `null` | Post types, admin pages, or callback for upload filtering |
+| `admin_notice_pages` | array | `[]` | Admin page slugs to show protection notices |
 
-	// Get server rules
-	$nginx_rules = $protector->get_nginx_rules();
-	$htaccess    = $protector->get_htaccess_rules();
+## File Delivery Features
 
-	// Remove protection
-	$protector->unprotect();
+The delivery system automatically optimizes based on file type:
 
-	// Check server type
-	$server = $protector->get_server_type();
+### Automatic Behavior by File Type
+
+| File Type | Behavior | Chunk Size |
+|-----------|----------|------------|
+| **PDF** | Display inline | 1MB |
+| **Images** | Display inline | 512KB |
+| **Video** | Stream with range support | 2MB |
+| **Audio** | Stream with range support | 1MB |
+| **Archives** | Force download | 4MB |
+| **Documents** | Force download | 1MB |
+
+### Delivery Options
+
+```php
+deliver_protected_file( $file_path, [
+    'filename'       => 'custom-name.pdf',  // Custom download name
+    'force_download' => true,                // Override auto-detection
+    'enable_range'   => false,               // Disable range support
+    'chunk_size'     => 4194304,            // Custom chunk size (4MB)
+    'mime_type'      => 'application/pdf'   // Override MIME detection
+] );
+```
+
+### X-Sendfile Support
+
+Automatically detects and uses X-Sendfile for better performance:
+
+- **Apache**: mod_xsendfile
+- **Nginx**: X-Accel-Redirect (requires configuration)
+- **LiteSpeed**: X-Sendfile
+
+For Nginx, configure internal location:
+```nginx
+location /internal/ {
+    internal;
+    alias /path/to/wp-content/uploads/;
 }
+```
 
-// Or use the Registry directly for management operations
-use ArrayPress\ProtectedFolders\Registry;
-
-$registry    = Registry::get_instance();
-$all_folders = $registry->get_ids();  // ['downloads', 'media', ...]
-$registry->remove( 'downloads' );     // Unregister a folder
+Then enable in WordPress:
+```php
+add_filter( 'protected_folders_nginx_xsendfile', '__return_true' );
+add_filter( 'protected_folders_nginx_internal_path', function() {
+    return '/internal/';
+} );
 ```
 
 ## Complete Examples
 
 ### Digital Download Plugin
+
 ```php
-// Register on plugin activation or init
-add_action( 'init', function () {
-	register_protected_folder( 'digital-downloads', [
-		'allowed_types'      => [ 'jpg', 'png' ],      // Allow preview images
-		'dated_folders'      => true,                // Organize by date
-		'auto_protect'       => true,                 // Auto-protect
-		'upload_filter'      => [
-			'download',                         // Download post type
-			'admin:download-settings'           // Settings page
-		],
-		'admin_notice_pages' => [ 'download-settings' ]
-	] );
-} );
-
-// Use anywhere in your plugin
-function save_download_file( $file ) {
-	$upload_dir = get_protected_folder_path( 'digital-downloads', true );
-	$file_path  = $upload_dir . '/' . $file['name'];
-	move_uploaded_file( $file['tmp_name'], $file_path );
-
-	$file_url = get_protected_folder_url( 'digital-downloads', true );
-
-	return $file_url . '/' . $file['name'];
+class Download_Manager {
+    
+    public function __construct() {
+        add_action( 'init', [ $this, 'register_protection' ] );
+        add_action( 'init', [ $this, 'handle_download' ] );
+    }
+    
+    public function register_protection() {
+        register_protected_folder( 'downloads', [
+            'allowed_types' => ['jpg', 'png'],      // Preview images only
+            'dated_folders' => true,
+            'auto_protect'  => true,
+            'upload_filter' => 'download'           // Auto-organize uploads
+        ] );
+    }
+    
+    public function handle_download() {
+        if ( ! isset( $_GET['download_id'] ) ) {
+            return;
+        }
+        
+        // Verify purchase, permissions, etc.
+        if ( ! $this->verify_access( $_GET['download_id'] ) ) {
+            wp_die( 'Access denied' );
+        }
+        
+        // Get file path from your database
+        $file_path = $this->get_download_path( $_GET['download_id'] );
+        
+        // Deliver the file - that's it!
+        deliver_protected_file( $file_path );
+        // Automatically handles:
+        // - MIME type detection
+        // - Optimal chunking
+        // - Range requests for resume
+        // - X-Sendfile when available
+    }
 }
 ```
 
-### E-Commerce Plugin
+### E-Commerce with Multiple File Types
+
 ```php
-// Multiple protected folders for different purposes
-register_protected_folder( 'invoices', [
-	'allowed_types' => [],                      // No public access
-	'dated_folders' => true,
-	'auto_protect'  => true
-] );
-
-register_protected_folder( 'product-files', [
-	'allowed_types' => [ 'jpg', 'png', 'mp4' ],   // Preview files
-	'dated_folders' => false,                   // All in one folder
-	'auto_protect'  => true,
-	'upload_filter' => 'product'
-] );
-
-register_protected_folder( 'customer-uploads', [
-	'allowed_types' => [],
-	'dated_folders' => true,
-	'auto_protect'  => true,
-	'upload_filter' => function () {
-		return isset( $_POST['customer_upload'] );
-	}
-] );
-```
-
-### Membership Site
-```php
-class Membership_Plugin {
-	public function __construct() {
-		add_action( 'init', [ $this, 'setup_protection' ] );
-		add_action( 'template_redirect', [ $this, 'serve_protected_file' ] );
-	}
-
-	public function setup_protection() {
-		register_protected_folder( 'member-content', [
-			'allowed_types'      => [],  // No direct access
-			'dated_folders'      => true,
-			'auto_protect'       => true,
-			'upload_filter'      => [ 'lesson', 'resource' ],
-			'admin_notice_pages' => [ 'membership-settings' ]
-		] );
-	}
-
-	public function serve_protected_file() {
-		if ( ! isset( $_GET['download'] ) ) {
-			return;
-		}
-
-		if ( ! current_user_can( 'access_member_content' ) ) {
-			wp_die( 'Access denied' );
-		}
-
-		$file_path = get_protected_folder_path( 'member-content' );
-		$file      = $file_path . '/' . sanitize_file_name( $_GET['download'] );
-
-		if ( file_exists( $file ) ) {
-			// Serve the file
-			readfile( $file );
-			exit;
-		}
-	}
+class Product_Downloads {
+    
+    public function serve_product_file( $product_id, $file_id ) {
+        $file = $this->get_product_file( $product_id, $file_id );
+        
+        // Different behavior based on file type
+        switch ( $file['type'] ) {
+            case 'preview':
+                // Force inline display for previews
+                deliver_protected_file( $file['path'], [
+                    'force_download' => false
+                ] );
+                break;
+                
+            case 'bonus':
+                // Custom filename for bonus content
+                deliver_protected_file( $file['path'], [
+                    'filename' => "Bonus - {$file['title']}.pdf"
+                ] );
+                break;
+                
+            default:
+                // Let the system decide (PDF inline, ZIP download, etc.)
+                deliver_protected_file( $file['path'] );
+        }
+    }
 }
 ```
 
-## How It Works
+### Membership Site with Streaming
 
-1. **Registry Pattern** - Single source of truth for all protected folders
-2. **Auto-Protection** - Optionally creates protection files on `admin_init`
-3. **Upload Filtering** - Automatically organizes uploads to protected folders
-4. **Smart Testing** - Actually tests file access, not just file presence
-5. **Multi-Server** - Works with Apache, Nginx, IIS, and LiteSpeed
+```php
+class Member_Content {
+    
+    public function __construct() {
+        // Register protection for different content types
+        register_protected_folder( 'courses', [
+            'allowed_types' => [],  // No direct access
+            'dated_folders' => false,
+            'auto_protect'  => true
+        ] );
+    }
+    
+    public function stream_video( $lesson_id ) {
+        if ( ! $this->has_access( $lesson_id ) ) {
+            wp_die( 'Please upgrade your membership' );
+        }
+        
+        $video_path = get_protected_folder_path( 'courses' ) . "/{$lesson_id}.mp4";
+        
+        // Stream video with range support for seeking
+        deliver_protected_file( $video_path );
+        // Automatically:
+        // - Sends proper video headers
+        // - Supports range requests for seeking
+        // - Uses 2MB chunks for smooth playback
+        // - Enables resume if connection drops
+    }
+    
+    public function download_resources( $resource_id ) {
+        $file_path = $this->get_resource_path( $resource_id );
+        
+        // Force download even for PDFs
+        deliver_protected_file( $file_path, [
+            'force_download' => true,
+            'filename' => $this->get_nice_filename( $resource_id )
+        ] );
+    }
+}
+```
 
-## Protection Layers
+### Advanced Delivery Control
 
-Each protected folder gets three layers of protection:
+```php
+// Create reusable delivery instance with custom settings
+$delivery = create_file_delivery( [
+    'chunk_size'   => 4194304,  // 4MB chunks
+    'enable_range' => true       // Always enable range support
+] );
 
-1. **`.htaccess`** - Apache/LiteSpeed deny rules with optional exceptions
-2. **`index.php`** - PHP silence file as fallback
-3. **`index.html`** - Empty HTML as additional fallback
+// Use for multiple files with same settings
+foreach ( $files as $file ) {
+    $delivery->stream( $file['path'], [
+        'filename' => $file['name']
+    ] );
+}
 
-## Server Support
+// Or use the class directly for full control
+use ArrayPress\ProtectedFolders\Delivery;
+
+$delivery = new Delivery();
+$delivery->set_option( 'chunk_size', 8388608 );  // 8MB chunks
+
+if ( $delivery->supports_xsendfile() ) {
+    // Server supports fast file serving!
+}
+
+$delivery->stream( $large_file );
+```
+
+## Upload Filtering
+
+Automatically organize uploads to protected folders:
+
+```php
+// Single post type
+register_protected_folder( 'downloads', [
+    'upload_filter' => 'download'
+] );
+
+// Multiple post types
+register_protected_folder( 'media', [
+    'upload_filter' => ['product', 'download']
+] );
+
+// Admin page
+register_protected_folder( 'settings', [
+    'upload_filter' => 'admin:my-settings-page'
+] );
+
+// Custom logic
+register_protected_folder( 'conditional', [
+    'upload_filter' => function() {
+        return isset( $_GET['special_upload'] );
+    }
+] );
+```
+
+## Server Configuration
 
 ### Apache/LiteSpeed
 Works automatically with .htaccess files.
 
 ### Nginx
+Get rules for manual configuration:
 ```php
 $protector = get_protected_folder( 'downloads' );
-if ( $protector ) {
-    echo $protector->get_nginx_rules();
-}
+echo $protector->get_nginx_rules();
 ```
 
 ### IIS
+Get web.config rules:
 ```php
 $protector = get_protected_folder( 'downloads' );
-if ( $protector ) {
-    echo $protector->get_iis_rules();
-}
+echo $protector->get_iis_rules();
 ```
 
-## Requirements
+## How Protection Works
 
-- PHP 7.4 or later
-- WordPress 5.0 or later
+Each protected folder gets multiple layers of protection:
+
+1. **`.htaccess`** - Server-level denial with optional exceptions
+2. **`index.php`** - PHP silence file as fallback
+3. **`index.html`** - Empty HTML as additional fallback
+4. **Verification** - Actually tests HTTP access to confirm protection
+
+## Performance Optimizations
+
+The delivery system automatically optimizes for performance:
+
+- **X-Sendfile** - Offloads file serving to web server when available
+- **Smart Chunking** - Optimal chunk sizes based on file type
+- **Range Support** - Enables resume and video seeking
+- **Memory Management** - Streams files without loading into memory
+- **Output Buffering** - Proper buffer management for large files
 
 ## Why Use This?
 
-- **Zero Boilerplate** - One function call replaces entire classes
-- **Minimal API** - Only 5 essential functions for 90% of use cases
-- **Smart Defaults** - Works out of the box with sensible defaults
-- **Battle-Tested** - Protection actually verified, not just assumed
-- **Flexible** - Full access to Protector class for advanced needs
+- **Complete Solution** - Protection + delivery in one package
+- **Zero Configuration** - Smart defaults that just work
+- **Performance Optimized** - X-Sendfile, chunking, and range support
 - **WordPress Native** - Follows WordPress coding standards
+- **Battle-Tested** - Used in production e-commerce systems
+- **Minimal API** - Simple functions for common tasks
+- **Extensible** - Full class access for advanced needs
 
 ## Contributing
 
@@ -296,7 +364,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the GPL-2.0-or-later License.
+GPL-2.0-or-later
+
+## Credits
+
+Created and maintained by [David Sherlock](https://davidsherlock.com) at [ArrayPress](https://arraypress.com).
 
 ## Support
 
