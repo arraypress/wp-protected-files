@@ -125,7 +125,7 @@ class Registry {
      *                                   Configuration options
      *
      * @type array   $allowed_types      File extensions allowed for public access (default: ['jpg', 'jpeg', 'png',
-     *       'gif', 'webp'])
+     *                                   'gif', 'webp'])
      * @type bool    $dated_folders      Whether to organize by year/month (default: true)
      * @type bool    $auto_protect       Auto-protect on admin_init (default: false)
      * @type mixed   $upload_filter      Post type(s), admin page(s), or callback for upload filtering
