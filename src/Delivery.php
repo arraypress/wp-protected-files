@@ -16,8 +16,8 @@ declare( strict_types=1 );
 
 namespace ArrayPress\ProtectedFolders;
 
-use ArrayPress\Utils\MIME;
-use ArrayPress\Utils\File;
+use ArrayPress\FileUtils\MIME;
+use ArrayPress\FileUtils\File;
 
 /**
  * Delivery Class
